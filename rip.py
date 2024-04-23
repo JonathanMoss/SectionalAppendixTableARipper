@@ -16,6 +16,7 @@ TableA = namedtuple('TABLE_A', 'file_path, lor, seq, updated')
 
 LOR = ['CY', 'EA', 'GW', 'LN', 'MD', 'NW', 'NZ', 'SC', 'SO', 'SW', 'XR']
 VALID_SEQ = re.compile("^[O0-9]{3}$")
+ALT_VALID_SEQ = re.compile("^[O0-9]{3}")
 VALID_DATE = re.compile("[0-9]{2}/[0-9]{2}/[0-9]{4}")
 WORKDIR = '.'
 START_PAGE = 660
@@ -32,13 +33,14 @@ for path in [
     if not os.path.isdir(path):
         os.mkdir(path)
 
-def get_updated_date(values: list) -> Union[str, None]:
+def get_updated_date(values: list) -> str:
     """ Strips the updated date from the table A drawing """
-    for data in values:
+    for data in [value for value in values if len(value) == 10]:
         result = VALID_DATE.match(data)
         if result:
             return result.group()
-    return None
+    print('WARNING: Unable to parse date, using default')
+    return '01/01/1970'
 
 def create_regex() -> str:
     """ Create the regex search string """
@@ -51,18 +53,24 @@ VALID_LOR = re.compile(create_regex())
 
 def get_lor(values: list) -> Union[str, None]:
     """ Attempts to find the LOR code """
-    for data in values:
+    for data in [value for value in values if len(value) == 5]:
         result = VALID_LOR.match(data)
         if result:
             return result.group()
+    print('WARNING: Unable to parse LOR code')
     return None
 
 def get_seq(values:list) -> Union[str, None]:
     """ Returns the sequence number """
-    for data in values:
+    for data in [value for value in values if len(value) == 3]:
         result = VALID_SEQ.match(data)
         if result:
             return result.group()
+    for data in values:
+        result = ALT_VALID_SEQ.match(data)
+        if result:
+            return result.group()
+    print('WARNING: Unable to parse page sequence')
     return None
 
 def format_filename(table_a: TableA) -> str:
@@ -116,15 +124,21 @@ def rename_images() -> None:
             result = reader.readtext(full_path, detail=0)
 
             if not 'LOR' in result:
+                print(f'{each_path} not Table A drawing')
                 move_folder(full_path, each_path, FAILED)
                 continue
 
-            table_a = TableA(
-                each_path,
-                get_lor(result).replace('O', '0'),
-                get_seq(result).replace('O', '0'),
-                get_updated_date(result)
-            )
+            try:
+                table_a = TableA(
+                    each_path,
+                    get_lor(result).replace('O', '0'),
+                    get_seq(result).replace('O', '0'),
+                    get_updated_date(result)
+                )
+            except AttributeError:
+                move_folder(full_path, each_path, FAILED)
+                print(result)
+                continue
 
             if not all(table_a):
                 move_folder(full_path, each_path, FAILED)
