@@ -47,13 +47,13 @@ def create_regex() -> str:
     lor_str = ""
     for lor in LOR:
         lor_str += f"{lor}|"
-    return f"^({lor_str[:-1]}){{1}}[O0-9]{{3}}$"
+    return f"^({lor_str[:-1]}){{1}}[O0-9]{{3,4}}$"
 
 VALID_LOR = re.compile(create_regex())
 
 def get_lor(values: list) -> Union[str, None]:
     """ Attempts to find the LOR code """
-    for data in [value for value in values if len(value) == 5]:
+    for data in [value for value in values if len(value) in [5, 6]]:
         result = VALID_LOR.match(data)
         if result:
             return result.group()
@@ -157,5 +157,5 @@ def rename_images() -> None:
             update_created_datetime(new_file_name, table_a)
 
 if __name__ == "__main__":
-    strip_images(all_pages=True)
+    # strip_images(all_pages=True)
     rename_images()
