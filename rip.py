@@ -20,8 +20,17 @@ VALID_DATE = re.compile("[0-9]{2}/[0-9]{2}/[0-9]{4}")
 WORKDIR = '.'
 START_PAGE = 660
 END_PAGE = 699
-FAILED = '/failed/'
-PROCESSED = '/processed/'
+FAILED = 'failed'
+PROCESSED = 'processed'
+IMAGES = 'images'
+
+for path in [
+        os.path.join(WORKDIR, FAILED),
+        os.path.join(WORKDIR, PROCESSED),
+        os.path.join(WORKDIR, IMAGES)
+    ]:
+    if not os.path.isdir(path):
+        os.mkdir(path)
 
 def get_updated_date(values: list) -> Union[str, None]:
     """ Strips the updated date from the table A drawing """
@@ -76,7 +85,7 @@ def strip_images(all_pages: bool = False) -> None:
 
                     xref = img[0]
 
-                    save_path = os.path.join(WORKDIR + '/images/')
+                    save_path = os.path.join(WORKDIR, IMAGES)
                     tmp_filename = f'{each_path[:-4]}_p{i}-{xref}.png'
                     full_path = os.path.join(save_path, tmp_filename)
 
@@ -85,24 +94,24 @@ def strip_images(all_pages: bool = False) -> None:
 
 def move_folder(full_path: str, file_path: str, folder: str = FAILED) -> None:
     """ Move to the specified folder """
-    os.rename(full_path, os.path.join(WORKDIR + folder, file_path))
+    os.rename(full_path, os.path.join(WORKDIR, folder, file_path))
 
 def update_created_datetime(file_name: str, table_a: TableA) -> None:
     """ Update the created datetime """
-    full_path = os.path.join(WORKDIR + PROCESSED, file_name)
-    dt = datetime.datetime.strptime(table_a.updated, '%d/%m/%Y')
-    os.utime(full_path, (dt.timestamp(), dt.timestamp()))
+    full_path = os.path.join(WORKDIR, PROCESSED, file_name)
+    dtime = datetime.datetime.strptime(table_a.updated, '%d/%m/%Y')
+    os.utime(full_path, (dtime.timestamp(), dtime.timestamp()))
     print(full_path)
 
 def does_file_exist(file_name: str, folder: str = PROCESSED) -> bool:
     """ Returns True is the filename already exists """
-    full_path = os.path.join(WORKDIR + folder, file_name)
+    full_path = os.path.join(WORKDIR, folder, file_name)
     return os.path.isfile(full_path)
 
 def rename_images() -> None:
     """ Renames all table A images """
-    for each_path in os.listdir(os.path.join(WORKDIR, 'images/')):
-        full_path = os.path.join(WORKDIR + '/images/', each_path)
+    for each_path in os.listdir(os.path.join(WORKDIR, IMAGES)):
+        full_path = os.path.join(WORKDIR, IMAGES, each_path)
         if ".png" in each_path:
             result = reader.readtext(full_path, detail=0)
 
