@@ -157,5 +157,5 @@ def rename_images() -> None:
             update_created_datetime(new_file_name, table_a)
 
 if __name__ == "__main__":
-    # strip_images(all_pages=True)
+    strip_images(all_pages=True)
     rename_images()
