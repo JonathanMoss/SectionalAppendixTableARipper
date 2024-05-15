@@ -28,6 +28,7 @@ ELR = re.compile("[A-Z]{3}[0-9]?")
 TSV = os.path.join(WORKDIR, 'output.tsv')
 
 Mileage = namedtuple('Mileage', 'miles, chains, yards')
+Processed = []
 
 for path in [
         os.path.join(WORKDIR, META),
@@ -112,6 +113,8 @@ def parse_mileages(raw: str) -> List[Union[Mileage, None]]:
         return [None]
 
     for index, element in enumerate(miles):
+        if not str(chains[index]).isnumeric():
+            continue
         ret_val.append(
             Mileage(
                 element,
