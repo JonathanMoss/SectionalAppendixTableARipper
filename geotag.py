@@ -7,13 +7,18 @@ from functools import lru_cache
 from typing import Union, List
 import os
 import sys
+from PIL import Image
 import geopandas as gpd
 import pandas as pds
+from GPSPhoto import gpsphoto
+from pyproj import CRS
 
 WRK_DIR = "."
 MP_GEO = os.path.join(WRK_DIR, "mileposts.gpkg")
 CORRECTED = os.path.join(WRK_DIR, "corrected_full.tsv")
 TAGGED = os.path.join(WRK_DIR, "geo_tagged.tsv")
+TAG_DIR = os.path.join(WRK_DIR, "tagged")
+IMG_DIR = os.path.join(".", "meta")
 TSV_HEADER = [
     'file',
     'lor',
@@ -24,6 +29,14 @@ TSV_HEADER = [
     'yds',
     'desc'
 ]
+
+crs = CRS.from_string('EPSG:4326')
+
+for path in [
+        TAG_DIR
+    ]:
+    if not os.path.isdir(path):
+        os.mkdir(path)
 
 class GeoTag:
     """ GeoTag images """
@@ -81,10 +94,11 @@ class GeoTag:
     @staticmethod
     def return_coordinates(closest: gpd.GeoDataFrame) -> tuple:
         """ Extract coordinates and parent record """
+
+        closest = closest.to_crs(crs=crs)
         lon = closest.geometry.x.to_string()
         parent, lon = lon.split()
         lat = closest.geometry.y.to_string().split()[1]
-
         return (lon, lat, parent)
 
     def match_to_mp(self) -> pds.DataFrame:
@@ -102,6 +116,33 @@ class GeoTag:
 
         return pds.read_csv(TAGGED, delimiter='\t', names=TSV_HEADER + ['lon', 'lat', 'parent'])
 
+    @staticmethod
+    def set_gps_location(frame: pds.DataFrame) -> None:
+        """ Set the gps location for all files in the dataframe """
+
+        for _, row in frame.iterrows():
+            file = os.path.join(TAG_DIR, row.get('file').replace("png", "jpg"))
+            lat = row.get('lat')
+            lon = row.get('lon')
+            photo = gpsphoto.GPSPhoto(file)
+            info = gpsphoto.GPSInfo((lat, lon))
+            photo.modGPSData(info, file)
+
+    @staticmethod
+    def convert_file(file: str) -> None:
+        """ Convert the PNG to JPEG """
+        filename = os.path.basename(file)
+        png = Image.open(os.path.join(IMG_DIR, file))
+        rgb = png.convert('RGB')
+        new_path = os.path.join(TAG_DIR, filename.replace("png", "jpg"))
+        rgb.save(new_path)
+
+    @staticmethod
+    def prep_png() -> None:
+        """ Create a JPG version of each PNG file """
+        for each_path in os.listdir(IMG_DIR):
+            GeoTag.convert_file(each_path)
+
     def start_parse(self) -> None:
         """ Parse the data """
         elr_errors = self.check_elr_errors()
@@ -114,7 +155,8 @@ class GeoTag:
             sys.exit(1)
 
         tagged = self.match_to_mp()
-        print(tagged)
+        self.prep_png()
+        self.set_gps_location(tagged)
 
 if __name__ == "__main__":
     tag = GeoTag()
